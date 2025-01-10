@@ -1,41 +1,30 @@
+// main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'app.dart';
 
-void main() {
-  runApp(MyFirstApp());
-}
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-class MyFirstApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('My First Flutter App'),
-          backgroundColor: Colors.blue,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Hello, Flutter!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
-                ),
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  print('Button was pressed!');
-                },
-                child: Text('Click Me'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  // Configure system UI
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  // Keep screen on
+  await SystemChannels.platform
+      .invokeMethod<void>('flutter.screen.keepOn', true);
+
+  // Set up Android window flags to keep screen on at full brightness
+  await SystemChannels.platform
+      .invokeMethod('SystemChrome.setSystemUIOverlayStyle', {
+    'FLAG_KEEP_SCREEN_ON': true,
+  });
+
+  const platform = const MethodChannel('com.example.app/screen');
+  try {
+    await platform.invokeMethod('preventScreenDim');
+  } catch (e) {
+    print('Failed to prevent screen dim: $e');
   }
+
+  runApp(const MyFirstApp());
 }
