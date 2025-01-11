@@ -1,9 +1,8 @@
-// app.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'models/app_settings.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'l10n/app_localizations_delegate.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'routes.dart';
 
 class MyFirstApp extends StatelessWidget {
@@ -21,16 +20,22 @@ class MyFirstApp extends StatelessWidget {
               primarySwatch: Colors.blue,
             ),
             locale: settings.locale,
-            supportedLocales: const [
-              Locale('en'),
-              Locale('he'),
-            ],
+            supportedLocales: AppLocalizations.supportedLocales,
             localizationsDelegates: const [
-              AppLocalizationsDelegate(),
+              AppLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
+            // Add RTL support
+            builder: (context, child) {
+              return Directionality(
+                textDirection: settings.locale.languageCode == 'he'
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
+                child: child!,
+              );
+            },
             initialRoute: '/',
             routes: Routes.getRoutes(),
           );

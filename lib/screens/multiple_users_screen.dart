@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../services/nearby_service.dart';
-import '../l10n/app_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class MultipleUsersScreen extends StatefulWidget {
   const MultipleUsersScreen({Key? key}) : super(key: key);
@@ -33,7 +33,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
       if (!initialized && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context).initializationFailed),
+            content: Text(AppLocalizations.of(context)!.initializationFailed),
             backgroundColor: Colors.red,
           ),
         );
@@ -49,7 +49,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${AppLocalizations.of(context).error}: $e'),
+            content: Text('${AppLocalizations.of(context)!.error}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -68,7 +68,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${AppLocalizations.of(context).error}: $e'),
+            content: Text('${AppLocalizations.of(context)!.error}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -88,7 +88,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${AppLocalizations.of(context).error}: $e'),
+            content: Text('${AppLocalizations.of(context)!.error}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -109,7 +109,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${AppLocalizations.of(context).error}: $e'),
+            content: Text('${AppLocalizations.of(context)!.error}: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -131,7 +131,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${AppLocalizations.of(context).connectionError}$e'),
+            content: Text('${AppLocalizations.of(context)!.connectionError}$e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -158,20 +158,19 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
         return _isMain
             ? ElevatedButton(
                 onPressed: () => _connectToDevice(deviceId),
-                child: Text(AppLocalizations.of(context).connect),
+                child: Text(AppLocalizations.of(context)!.connect),
               )
             : const SizedBox.shrink();
     }
   }
 
   Widget _buildRoleSelection(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          localizations.selectRole,
+          l10n.selectRole,
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 20),
@@ -180,7 +179,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
           ),
           onPressed: _startAsMain,
-          child: Text(localizations.startAsMain),
+          child: Text(l10n.startAsMain),
         ),
         const SizedBox(height: 16),
         ElevatedButton(
@@ -188,15 +187,14 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
           ),
           onPressed: _startAsClient,
-          child: Text(localizations.startAsClient),
+          child: Text(l10n.startAsClient),
         ),
       ],
     );
   }
 
   Widget _buildDeviceList() {
-    final localizations = AppLocalizations.of(context);
-
+    final l10n = AppLocalizations.of(context)!;
     return StreamBuilder<List<Discovery>>(
       stream: _nearbyService.deviceStream,
       builder: (context, discoverySnapshot) {
@@ -212,9 +210,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
                         size: 48, color: Colors.grey[400]),
                     const SizedBox(height: 16),
                     Text(
-                      _isMain
-                          ? localizations.noClientsFound
-                          : localizations.waitingForMain,
+                      _isMain ? l10n.noClientsFound : l10n.waitingForMain,
                       style: TextStyle(color: Colors.grey[600]),
                     ),
                   ],
@@ -247,8 +243,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
                           : Colors.grey,
                     ),
                     title: Text(device.name),
-                    subtitle:
-                        Text(_getConnectionStateText(device.id, localizations)),
+                    subtitle: Text(_getConnectionStateText(device.id, l10n)),
                     trailing: _buildConnectionButton(device.id),
                   ),
                 );
@@ -284,13 +279,11 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
-
+    final l10n = AppLocalizations.of(context)!;
     if (!_isInitialized) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(
-              _isMain ? localizations.mainDevice : localizations.clientDevice),
+          title: Text(_isMain ? l10n.mainDevice : l10n.clientDevice),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -299,7 +292,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
     if (!_isActive) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(localizations.selectRole),
+          title: Text(l10n.selectRole),
         ),
         body: Center(child: _buildRoleSelection(context)),
       );
@@ -307,13 +300,12 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            _isMain ? localizations.mainDevice : localizations.clientDevice),
+        title: Text(_isMain ? l10n.mainDevice : l10n.clientDevice),
         actions: [
           IconButton(
             icon: const Icon(Icons.stop),
             onPressed: _stop,
-            tooltip: localizations.stop,
+            tooltip: l10n.stop,
           ),
         ],
       ),
@@ -322,9 +314,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
         child: Column(
           children: [
             Text(
-              _isMain
-                  ? localizations.discoveringClients
-                  : localizations.searchingForMain,
+              _isMain ? l10n.discoveringClients : l10n.searchingForMain,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 24),

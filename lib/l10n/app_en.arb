@@ -1,0 +1,38 @@
+{
+  "@@locale": "en",
+  "selectMode": "Select Mode",
+  "singleUser": "Single User",
+  "multipleUsers": "Multiple Users",
+  "settings": "Settings",
+  "language": "Language",
+  "english": "English",
+  "hebrew": "Hebrew",
+  "selectRole": "Select Role",
+  "startAsMain": "Start as Main Device",
+  "startAsClient": "Start as Client Device",
+  "mainDevice": "Main Device",
+  "clientDevice": "Client Device",
+  "connecting": "Connecting...",
+  "connected": "Connected",
+  "disconnected": "Not connected",
+  "connectionFailed": "Connection failed",
+  "connect": "Connect",
+  "stop": "Stop",
+  "retry": "Retry",
+  "discoveringClients": "Discovering Clients...",
+  "searchingForMain": "Searching for Main Device...",
+  "noClientsFound": "No client devices found",
+  "waitingForMain": "Waiting for main device...",
+  "device": "Device",
+  "initializationFailed": "Failed to initialize Nearby service. Please check permissions.",
+  "discoveryError": "Discovery error",
+  "connectionError": "Connection error: {error}",
+  "@connectionError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "error": "Error"
+}

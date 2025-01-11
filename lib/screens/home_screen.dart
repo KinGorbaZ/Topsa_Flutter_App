@@ -1,7 +1,6 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../widgets/greeting_widget.dart';
 import '../services/screen_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -40,7 +39,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         backgroundColor: Colors.blue,
       ),
       body: const Center(
-        child: GreetingWidget(),
+        // Replacing GreetingWidget with a simple Column
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Hello, Flutter!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: null,
+              child: Text('Click Me'),
+            ),
+          ],
+        ),
       ),
     );
   }

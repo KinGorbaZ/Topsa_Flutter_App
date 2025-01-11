@@ -2,35 +2,35 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/app_settings.dart';
-import '../l10n/app_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations.settings),
+        title: Text(l10n.settings),
       ),
       body: Consumer<AppSettings>(
         builder: (context, settings, child) {
           return ListView(
             children: [
               ListTile(
-                title: Text(localizations.language),
+                title: Text(l10n.language),
                 trailing: DropdownButton<String>(
                   value: settings.locale.languageCode,
                   items: [
                     DropdownMenuItem(
                       value: 'en',
-                      child: Text(localizations.english),
+                      child: Text(l10n.english),
                     ),
                     DropdownMenuItem(
                       value: 'he',
-                      child: Text(localizations.hebrew),
+                      child: Text(l10n.hebrew),
                     ),
                   ],
                   onChanged: (String? value) {

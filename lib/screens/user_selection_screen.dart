@@ -1,6 +1,6 @@
 // lib/screens/user_selection_screen.dart
 import 'package:flutter/material.dart';
-import '../l10n/app_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'multiple_users_screen.dart';
 import '../routes.dart';
 
@@ -9,11 +9,11 @@ class UserSelectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(localizations.selectMode),
+        title: Text(l10n.selectMode),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -35,8 +35,8 @@ class UserSelectionScreen extends StatelessWidget {
               onPressed: () {
                 Navigator.pushNamed(context, Routes.home);
               },
-              child: Text(localizations.singleUser,
-                  style: const TextStyle(fontSize: 18)),
+              child:
+                  Text(l10n.singleUser, style: const TextStyle(fontSize: 18)),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -52,7 +52,7 @@ class UserSelectionScreen extends StatelessWidget {
                   ),
                 );
               },
-              child: Text(localizations.multipleUsers,
+              child: Text(l10n.multipleUsers,
                   style: const TextStyle(fontSize: 18)),
             ),
           ],
