@@ -1,30 +1,55 @@
+// lib/services/nearby_service.dart
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 
+class ConnectionStateUpdate {
+  final String endpointId;
+  final DeviceConnectionState state;
+
+  ConnectionStateUpdate(this.endpointId, this.state);
+}
+
 class NearbyService {
   final Nearby _nearby = Nearby();
   static const String SERVICE_ID = "com.topsa.topsa_flutter_app";
 
+  // Added connection tracking map
+  final Map<String, DeviceConnectionState> _connectionStates = {};
+
   final StreamController<List<Discovery>> _devicesController =
       StreamController<List<Discovery>>.broadcast();
+  final StreamController<ConnectionStateUpdate> _connectionStateController =
+      StreamController<ConnectionStateUpdate>.broadcast();
+
   Stream<List<Discovery>> get deviceStream => _devicesController.stream;
+  Stream<ConnectionStateUpdate> get connectionStateStream =>
+      _connectionStateController.stream;
 
   final String userName;
   final List<Discovery> _discoveredDevices = [];
-  bool _isDiscovering = false;
-  bool _isAdvertising = false;
+  bool _isMain = false;
+  bool _isActive = false;
 
   NearbyService(this.userName);
 
   Future<bool> initialize() async {
     try {
       debugPrint('Checking permissions...');
+
+      // Check and request required permissions
       if (!await _checkPermissions()) {
         debugPrint('Failed to get permissions');
         return false;
       }
+
+      // Reset states
+      _isMain = false;
+      _isActive = false;
+      _discoveredDevices.clear();
+      _connectionStates.clear();
+
       return true;
     } catch (e) {
       debugPrint('Error initializing Nearby Service: $e');
@@ -41,7 +66,7 @@ class NearbyService {
         return false;
       }
 
-      // Location services
+      // Check if location services are enabled
       if (!await _nearby.checkLocationEnabled()) {
         var locationEnabled = await _nearby.enableLocationServices();
         if (!locationEnabled) {
@@ -50,17 +75,16 @@ class NearbyService {
         }
       }
 
-      // Bluetooth permissions with proper error handling
-      Map<Permission, PermissionStatus> bluetoothPermissions = await [
-        Permission.bluetoothScan,
-        Permission.bluetoothConnect,
-        Permission.bluetoothAdvertise,
-      ].request();
+      // Bluetooth permissions
+      var bluetoothScan = await Permission.bluetoothScan.request();
+      var bluetoothConnect = await Permission.bluetoothConnect.request();
+      var bluetoothAdvertise = await Permission.bluetoothAdvertise.request();
 
-      bool allGranted =
-          bluetoothPermissions.values.every((status) => status.isGranted);
-      if (!allGranted) {
-        debugPrint('Some Bluetooth permissions were denied');
+      // Check all Bluetooth permissions
+      if (!bluetoothScan.isGranted ||
+          !bluetoothConnect.isGranted ||
+          !bluetoothAdvertise.isGranted) {
+        debugPrint('Bluetooth permissions denied');
         return false;
       }
 
@@ -72,11 +96,10 @@ class NearbyService {
   }
 
   Future<void> startAdvertising() async {
-    if (_isAdvertising) return;
+    if (!_isActive) return;
 
     try {
       debugPrint('Starting advertising as: $userName');
-      _isAdvertising = true;
 
       bool? advertiseResult = await _nearby.startAdvertising(
         userName,
@@ -88,95 +111,206 @@ class NearbyService {
       );
 
       if (advertiseResult == false) {
-        debugPrint('Failed to start advertising');
-        _isAdvertising = false;
+        _isActive = false;
+        throw Exception('Failed to start advertising');
       }
     } catch (e) {
-      debugPrint('Error starting advertising: $e');
-      _isAdvertising = false;
+      debugPrint('Error in advertising: $e');
+      _isActive = false;
+      rethrow;
+    }
+  }
+
+  Future<void> stopAdvertising() async {
+    try {
+      debugPrint('Stopping advertising...');
+      await _nearby.stopAdvertising();
+    } catch (e) {
+      debugPrint('Error stopping advertising: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> startAsMain() async {
+    if (_isActive) return;
+
+    _isMain = true;
+    _isActive = true;
+
+    try {
+      // Start advertising first so clients can discover
+      await startAdvertising();
+      // Then start discovery to find clients
+      await startDiscovery();
+    } catch (e) {
+      _isActive = false;
+      rethrow;
+    }
+  }
+
+  Future<void> startAsClient() async {
+    if (_isActive) return;
+
+    _isMain = false;
+    _isActive = true;
+
+    try {
+      // Start advertising so main can discover
+      await startAdvertising();
+      // Also start discovery to find main device
+      await startDiscovery();
+    } catch (e) {
+      _isActive = false;
+      rethrow;
     }
   }
 
   Future<void> startDiscovery() async {
-    if (_isDiscovering) return;
-
     try {
-      debugPrint('Starting discovery...');
-      _isDiscovering = true;
+      debugPrint('Starting discovery as: $userName (isMain: $_isMain)');
       _discoveredDevices.clear();
       _devicesController.add(_discoveredDevices);
 
       bool? discoveryResult = await _nearby.startDiscovery(
         userName,
         Strategy.P2P_CLUSTER,
-        onEndpointFound: (id, userName, serviceId) {
-          debugPrint('Found endpoint: $userName ($id)');
-          final discovery = Discovery(id: id, name: userName);
+        onEndpointFound: (id, name, serviceId) {
+          debugPrint('Found endpoint: $name ($id)');
+          // Add device only if it's not already in the list
           if (!_discoveredDevices.any((device) => device.id == id)) {
+            final discovery = Discovery(id: id, name: name);
             _discoveredDevices.add(discovery);
             _devicesController.add(_discoveredDevices);
+
+            // Set initial connection state
+            _updateConnectionState(id, DeviceConnectionState.disconnected);
           }
         },
         onEndpointLost: (id) {
           debugPrint('Lost endpoint: $id');
           _discoveredDevices.removeWhere((device) => device.id == id);
           _devicesController.add(_discoveredDevices);
+          _updateConnectionState(id!, DeviceConnectionState.disconnected);
         },
         serviceId: SERVICE_ID,
       );
 
-      if (discoveryResult == false) {
-        debugPrint('Failed to start discovery');
-        _isDiscovering = false;
+      if (discoveryResult != true) {
+        throw Exception('Failed to start discovery');
       }
     } catch (e) {
-      debugPrint('Error starting discovery: $e');
-      _isDiscovering = false;
+      debugPrint('Error in discovery: $e');
+      rethrow;
+    }
+  }
+
+  void _updateConnectionState(String endpointId, DeviceConnectionState state) {
+    _connectionStates[endpointId] = state;
+    _connectionStateController.add(ConnectionStateUpdate(endpointId, state));
+  }
+
+  Future<void> connectToEndpoint(String endpointId) async {
+    if (!_isMain || !_isActive) return;
+
+    try {
+      _updateConnectionState(endpointId, DeviceConnectionState.connecting);
+
+      bool? connectionResult = await Future.any([
+        _nearby.requestConnection(
+          userName,
+          endpointId,
+          onConnectionInitiated: _onConnectionInitiated,
+          onConnectionResult: _onConnectionResult,
+          onDisconnected: _onDisconnected,
+        ),
+        Future.delayed(const Duration(seconds: 10)).then(
+            (_) => throw TimeoutException('Connection request timed out')),
+      ]);
+
+      if (connectionResult != true) {
+        throw Exception('Connection request failed');
+      }
+    } catch (e) {
+      _updateConnectionState(endpointId, DeviceConnectionState.failed);
+      rethrow;
     }
   }
 
   void _onConnectionInitiated(
       String endpointId, ConnectionInfo connectionInfo) {
-    debugPrint('Connection initiated by: ${connectionInfo.endpointName}');
+    debugPrint('Connection initiated: ${connectionInfo.endpointName}');
+    _updateConnectionState(endpointId, DeviceConnectionState.connecting);
+
     _nearby.acceptConnection(
       endpointId,
       onPayLoadRecieved: (endpointId, payload) {
         debugPrint('Received payload from: $endpointId');
       },
       onPayloadTransferUpdate: (endpointId, payloadTransferUpdate) {
-        debugPrint(
-            'Payload transfer update from $endpointId: ${payloadTransferUpdate.status}');
+        debugPrint('Transfer update: ${payloadTransferUpdate.status}');
       },
-    );
+    ).catchError((e) {
+      debugPrint('Error accepting connection: $e');
+      _updateConnectionState(endpointId, DeviceConnectionState.failed);
+    });
   }
 
   void _onConnectionResult(String endpointId, Status status) {
-    debugPrint('Connection result: $endpointId, status: $status');
+    debugPrint('Connection result: $endpointId - $status');
+    final newState = status == Status.CONNECTED
+        ? DeviceConnectionState.connected
+        : DeviceConnectionState.failed;
+
+    _updateConnectionState(endpointId, newState);
+
+    // If connected, update the discovered device list to show connection
+    if (newState == DeviceConnectionState.connected) {
+      _devicesController.add(_discoveredDevices);
+    }
   }
 
   void _onDisconnected(String endpointId) {
     debugPrint('Disconnected: $endpointId');
+    _updateConnectionState(endpointId, DeviceConnectionState.disconnected);
+  }
+
+  Future<void> stop() async {
+    if (!_isActive) return;
+
+    _isActive = false;
+
+    try {
+      if (_isMain) {
+        await stopDiscovery();
+      }
+      await stopAdvertising();
+      _discoveredDevices.clear();
+      _devicesController.add(_discoveredDevices);
+      _connectionStates.clear();
+    } catch (e) {
+      debugPrint('Error stopping service: $e');
+      rethrow;
+    } finally {
+      _isMain = false;
+    }
   }
 
   Future<void> stopDiscovery() async {
-    if (!_isDiscovering) return;
-    debugPrint('Stopping discovery...');
-    _isDiscovering = false;
-    await _nearby.stopDiscovery();
-  }
+    if (!_isMain) return;
 
-  Future<void> stopAdvertising() async {
-    if (!_isAdvertising) return;
-    debugPrint('Stopping advertising...');
-    _isAdvertising = false;
-    await _nearby.stopAdvertising();
+    try {
+      debugPrint('Stopping discovery...');
+      await _nearby.stopDiscovery();
+    } catch (e) {
+      debugPrint('Error stopping discovery: $e');
+      rethrow;
+    }
   }
 
   void dispose() {
-    debugPrint('Disposing Nearby service');
-    stopDiscovery();
-    stopAdvertising();
+    stop();
     _devicesController.close();
+    _connectionStateController.close();
   }
 }
 
@@ -185,4 +319,11 @@ class Discovery {
   final String name;
 
   Discovery({required this.id, required this.name});
+}
+
+enum DeviceConnectionState {
+  disconnected,
+  connecting,
+  connected,
+  failed,
 }

@@ -1,4 +1,4 @@
-// screens/settings_screen.dart
+// lib/screens/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/app_settings.dart';

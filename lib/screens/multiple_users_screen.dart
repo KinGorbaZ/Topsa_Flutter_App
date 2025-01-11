@@ -1,6 +1,7 @@
 // lib/screens/multiple_users_screen.dart
 import 'package:flutter/material.dart';
 import '../services/nearby_service.dart';
+import '../l10n/app_localizations.dart';
 
 class MultipleUsersScreen extends StatefulWidget {
   const MultipleUsersScreen({Key? key}) : super(key: key);
@@ -11,9 +12,10 @@ class MultipleUsersScreen extends StatefulWidget {
 
 class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
   late NearbyService _nearbyService;
-  final TextEditingController _nameController = TextEditingController();
   bool _isInitialized = false;
-  bool _isDiscovering = false;
+  bool _isMain = false;
+  bool _isActive = false;
+  Map<String, DeviceConnectionState> _connectionStates = {};
 
   @override
   void initState() {
@@ -23,18 +25,26 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
 
   Future<void> _initialize() async {
     try {
-      _nearbyService = NearbyService(_nameController.text);
+      String deviceId = DateTime.now().millisecondsSinceEpoch.toString();
+      _nearbyService = NearbyService('Device-$deviceId');
       bool initialized = await _nearbyService.initialize();
 
-      if (!initialized) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Failed to initialize Nearby service. Please check permissions.')),
-          );
-        }
+      if (!initialized && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context).initializationFailed),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
+
+      _nearbyService.connectionStateStream.listen((stateUpdate) {
+        if (mounted) {
+          setState(() {
+            _connectionStates[stateUpdate.endpointId] = stateUpdate.state;
+          });
+        }
+      });
 
       if (mounted) {
         setState(() {
@@ -45,35 +55,120 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
       debugPrint('Error initializing: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
-  Future<void> _startDiscovery() async {
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
-      );
-      return;
+  Future<void> _startAsMain() async {
+    try {
+      setState(() {
+        _isMain = true;
+        _isActive = true;
+      });
+      await _nearbyService.startAsMain();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+        setState(() => _isActive = false);
+      }
     }
-
-    setState(() => _isDiscovering = true);
-    await _nearbyService.startAdvertising();
-    await _nearbyService.startDiscovery();
   }
 
-  Future<void> _stopDiscovery() async {
-    setState(() => _isDiscovering = false);
-    await _nearbyService.stopDiscovery();
-    await _nearbyService.stopAdvertising();
+  Future<void> _startAsClient() async {
+    try {
+      setState(() {
+        _isMain = false;
+        _isActive = true;
+      });
+      await _nearbyService.startAsClient();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+        setState(() => _isActive = false);
+      }
+    }
+  }
+
+  Future<void> _stop() async {
+    try {
+      setState(() => _isActive = false);
+      await _nearbyService.stop();
+      setState(() {
+        _connectionStates.clear();
+      });
+    } catch (e) {
+      debugPrint('Error stopping: $e');
+    }
+  }
+
+  Future<void> _connectToDevice(String deviceId) async {
+    try {
+      await _nearbyService.connectToEndpoint(deviceId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _buildConnectionButton(String deviceId) {
+    final state =
+        _connectionStates[deviceId] ?? DeviceConnectionState.disconnected;
+
+    switch (state) {
+      case DeviceConnectionState.connecting:
+        return const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      case DeviceConnectionState.connected:
+        return Icon(Icons.check_circle, color: Colors.green[700]);
+      case DeviceConnectionState.failed:
+        return Icon(Icons.error, color: Colors.red[700]);
+      case DeviceConnectionState.disconnected:
+        return _isMain
+            ? ElevatedButton(
+                onPressed: () => _connectToDevice(deviceId),
+                child: const Text('Connect'),
+              )
+            : const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildRoleSelection() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'Select Role',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: _startAsMain,
+          child: const Text('Start as Main Device'),
+        ),
+        const SizedBox(height: 10),
+        ElevatedButton(
+          onPressed: _startAsClient,
+          child: const Text('Start as Client Device'),
+        ),
+      ],
+    );
   }
 
   @override
   void dispose() {
     _nearbyService.dispose();
-    _nameController.dispose();
     super.dispose();
   }
 
@@ -86,28 +181,30 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
       );
     }
 
+    if (!_isActive) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Multiple Users')),
+        body: Center(child: _buildRoleSelection()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Multiple Users'),
+        title: Text(_isMain ? 'Main Device' : 'Client Device'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.stop),
+            onPressed: _stop,
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Your Name',
-                border: OutlineInputBorder(),
-              ),
-              enabled: !_isDiscovering,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _isDiscovering ? _stopDiscovery : _startDiscovery,
-              icon: Icon(_isDiscovering ? Icons.stop : Icons.search),
-              label:
-                  Text(_isDiscovering ? 'Stop Discovery' : 'Start Discovery'),
+            Text(
+              _isMain ? 'Discovering Clients...' : 'Waiting for Main Device...',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 24),
             Expanded(
@@ -116,7 +213,7 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
                 builder: (context, snapshot) {
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
-                      child: Text('No nearby users found'),
+                      child: Text('No nearby devices found'),
                     );
                   }
 
@@ -126,9 +223,10 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
                       final device = snapshot.data![index];
                       return Card(
                         child: ListTile(
-                          leading: const Icon(Icons.person),
+                          leading: const Icon(Icons.devices),
                           title: Text(device.name),
                           subtitle: Text(device.id),
+                          trailing: _buildConnectionButton(device.id),
                         ),
                       );
                     },
