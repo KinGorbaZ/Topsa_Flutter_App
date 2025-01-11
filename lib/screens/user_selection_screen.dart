@@ -1,6 +1,8 @@
 // lib/screens/user_selection_screen.dart
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import 'multiple_users_screen.dart';
+import '../routes.dart';
 
 class UserSelectionScreen extends StatelessWidget {
   const UserSelectionScreen({Key? key}) : super(key: key);
@@ -16,7 +18,7 @@ class UserSelectionScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              Navigator.pushNamed(context, '/settings');
+              Navigator.pushNamed(context, Routes.settings);
             },
           ),
         ],
@@ -31,7 +33,7 @@ class UserSelectionScreen extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
               ),
               onPressed: () {
-                Navigator.pushNamed(context, '/home', arguments: false);
+                Navigator.pushNamed(context, Routes.home);
               },
               child: Text(localizations.singleUser,
                   style: const TextStyle(fontSize: 18)),
@@ -43,7 +45,12 @@ class UserSelectionScreen extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
               ),
               onPressed: () {
-                Navigator.pushNamed(context, '/home', arguments: true);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MultipleUsersScreen(),
+                  ),
+                );
               },
               child: Text(localizations.multipleUsers,
                   style: const TextStyle(fontSize: 18)),

@@ -10,6 +10,14 @@ class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
+  String interpolate(String key, Map<String, String> args) {
+    String value = _localizedValues[locale.languageCode]![key]!;
+    args.forEach((key, value) {
+      value = value.replaceAll('{$key}', value);
+    });
+    return value;
+  }
+
   static const _localizedValues = {
     'en': {
       'selectMode': 'Select Mode',
