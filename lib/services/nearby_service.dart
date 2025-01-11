@@ -14,7 +14,8 @@ class ConnectionStateUpdate {
 class NearbyService {
   final Nearby _nearby = Nearby();
   static const String SERVICE_ID = "com.topsa.topsa_flutter_app";
-
+  final Set<String> _connectedEndpoints = {};
+  bool _isReconnecting = false;
   // Added connection tracking map
   final Map<String, DeviceConnectionState> _connectionStates = {};
 
@@ -168,29 +169,35 @@ class NearbyService {
   Future<void> startDiscovery() async {
     try {
       debugPrint('Starting discovery as: $userName (isMain: $_isMain)');
-      _discoveredDevices.clear();
-      _devicesController.add(_discoveredDevices);
+      // Don't clear discovered devices if we're already connected to some
+      if (_connectedEndpoints.isEmpty) {
+        _discoveredDevices.clear();
+        _devicesController.add(_discoveredDevices);
+      }
 
       bool? discoveryResult = await _nearby.startDiscovery(
         userName,
         Strategy.P2P_CLUSTER,
         onEndpointFound: (id, name, serviceId) {
           debugPrint('Found endpoint: $name ($id)');
-          // Add device only if it's not already in the list
-          if (!_discoveredDevices.any((device) => device.id == id)) {
+          // Only add if not already connected
+          if (!_connectedEndpoints.contains(id)) {
             final discovery = Discovery(id: id, name: name);
-            _discoveredDevices.add(discovery);
-            _devicesController.add(_discoveredDevices);
-
-            // Set initial connection state
-            _updateConnectionState(id, DeviceConnectionState.disconnected);
+            if (!_discoveredDevices.any((device) => device.id == id)) {
+              _discoveredDevices.add(discovery);
+              _devicesController.add(_discoveredDevices);
+              _updateConnectionState(id, DeviceConnectionState.disconnected);
+            }
           }
         },
-        onEndpointLost: (id) {
+        onEndpointLost: (id) async {
           debugPrint('Lost endpoint: $id');
-          _discoveredDevices.removeWhere((device) => device.id == id);
-          _devicesController.add(_discoveredDevices);
-          _updateConnectionState(id!, DeviceConnectionState.disconnected);
+          // Only remove if not connected
+          if (!_connectedEndpoints.contains(id)) {
+            _discoveredDevices.removeWhere((device) => device.id == id);
+            _devicesController.add(_discoveredDevices);
+            _updateConnectionState(id!, DeviceConnectionState.disconnected);
+          }
         },
         serviceId: SERVICE_ID,
       );
@@ -210,7 +217,7 @@ class NearbyService {
   }
 
   Future<void> connectToEndpoint(String endpointId) async {
-    if (!_isMain || !_isActive) return;
+    if (!_isActive || _isReconnecting) return;
 
     try {
       _updateConnectionState(endpointId, DeviceConnectionState.connecting);
@@ -239,7 +246,6 @@ class NearbyService {
   void _onConnectionInitiated(
       String endpointId, ConnectionInfo connectionInfo) {
     debugPrint('Connection initiated: ${connectionInfo.endpointName}');
-    _updateConnectionState(endpointId, DeviceConnectionState.connecting);
 
     _nearby.acceptConnection(
       endpointId,
@@ -252,25 +258,25 @@ class NearbyService {
     ).catchError((e) {
       debugPrint('Error accepting connection: $e');
       _updateConnectionState(endpointId, DeviceConnectionState.failed);
+      _connectedEndpoints.remove(endpointId);
     });
   }
 
   void _onConnectionResult(String endpointId, Status status) {
     debugPrint('Connection result: $endpointId - $status');
-    final newState = status == Status.CONNECTED
-        ? DeviceConnectionState.connected
-        : DeviceConnectionState.failed;
 
-    _updateConnectionState(endpointId, newState);
-
-    // If connected, update the discovered device list to show connection
-    if (newState == DeviceConnectionState.connected) {
-      _devicesController.add(_discoveredDevices);
+    if (status == Status.CONNECTED) {
+      _connectedEndpoints.add(endpointId);
+      _updateConnectionState(endpointId, DeviceConnectionState.connected);
+    } else {
+      _connectedEndpoints.remove(endpointId);
+      _updateConnectionState(endpointId, DeviceConnectionState.failed);
     }
   }
 
   void _onDisconnected(String endpointId) {
     debugPrint('Disconnected: $endpointId');
+    _connectedEndpoints.remove(endpointId);
     _updateConnectionState(endpointId, DeviceConnectionState.disconnected);
   }
 
@@ -278,20 +284,18 @@ class NearbyService {
     if (!_isActive) return;
 
     _isActive = false;
+    _isReconnecting = false;
 
     try {
-      if (_isMain) {
-        await stopDiscovery();
-      }
+      await stopDiscovery();
       await stopAdvertising();
       _discoveredDevices.clear();
       _devicesController.add(_discoveredDevices);
       _connectionStates.clear();
+      _connectedEndpoints.clear();
     } catch (e) {
       debugPrint('Error stopping service: $e');
       rethrow;
-    } finally {
-      _isMain = false;
     }
   }
 

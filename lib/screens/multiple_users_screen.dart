@@ -1,4 +1,5 @@
 // lib/screens/multiple_users_screen.dart
+
 import 'package:flutter/material.dart';
 import '../services/nearby_service.dart';
 import '../l10n/app_localizations.dart';
@@ -38,14 +39,6 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
         );
       }
 
-      _nearbyService.connectionStateStream.listen((stateUpdate) {
-        if (mounted) {
-          setState(() {
-            _connectionStates[stateUpdate.endpointId] = stateUpdate.state;
-          });
-        }
-      });
-
       if (mounted) {
         setState(() {
           _isInitialized = initialized;
@@ -55,7 +48,10 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
       debugPrint('Error initializing: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('${AppLocalizations.of(context).error}: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -71,7 +67,10 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('${AppLocalizations.of(context).error}: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
         setState(() => _isActive = false);
       }
@@ -88,7 +87,10 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('${AppLocalizations.of(context).error}: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
         setState(() => _isActive = false);
       }
@@ -97,23 +99,41 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
 
   Future<void> _stop() async {
     try {
-      setState(() => _isActive = false);
       await _nearbyService.stop();
       setState(() {
+        _isActive = false;
         _connectionStates.clear();
       });
     } catch (e) {
       debugPrint('Error stopping: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${AppLocalizations.of(context).error}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _connectToDevice(String deviceId) async {
     try {
+      setState(() {
+        _connectionStates[deviceId] = DeviceConnectionState.connecting;
+      });
+
       await _nearbyService.connectToEndpoint(deviceId);
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _connectionStates[deviceId] = DeviceConnectionState.failed;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('${AppLocalizations.of(context).connectionError}$e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -138,32 +158,122 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
         return _isMain
             ? ElevatedButton(
                 onPressed: () => _connectToDevice(deviceId),
-                child: const Text('Connect'),
+                child: Text(AppLocalizations.of(context).connect),
               )
             : const SizedBox.shrink();
     }
   }
 
-  Widget _buildRoleSelection() {
+  Widget _buildRoleSelection(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          'Select Role',
+          localizations.selectRole,
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 20),
         ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+          ),
           onPressed: _startAsMain,
-          child: const Text('Start as Main Device'),
+          child: Text(localizations.startAsMain),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 16),
         ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+          ),
           onPressed: _startAsClient,
-          child: const Text('Start as Client Device'),
+          child: Text(localizations.startAsClient),
         ),
       ],
     );
+  }
+
+  Widget _buildDeviceList() {
+    final localizations = AppLocalizations.of(context);
+
+    return StreamBuilder<List<Discovery>>(
+      stream: _nearbyService.deviceStream,
+      builder: (context, discoverySnapshot) {
+        return StreamBuilder<ConnectionStateUpdate>(
+          stream: _nearbyService.connectionStateStream,
+          builder: (context, connectionSnapshot) {
+            if (!discoverySnapshot.hasData || discoverySnapshot.data!.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.device_unknown,
+                        size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 16),
+                    Text(
+                      _isMain
+                          ? localizations.noClientsFound
+                          : localizations.waitingForMain,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // Update connection states from stream
+            if (connectionSnapshot.hasData) {
+              final update = connectionSnapshot.data!;
+              _connectionStates[update.endpointId] = update.state;
+            }
+
+            return ListView.builder(
+              itemCount: discoverySnapshot.data!.length,
+              itemBuilder: (context, index) {
+                final device = discoverySnapshot.data![index];
+                return Card(
+                  elevation: 2,
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.bluetooth,
+                      color: _connectionStates[device.id] ==
+                              DeviceConnectionState.connected
+                          ? Colors.blue[700]
+                          : Colors.grey,
+                    ),
+                    title: Text(device.name),
+                    subtitle:
+                        Text(_getConnectionStateText(device.id, localizations)),
+                    trailing: _buildConnectionButton(device.id),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _getConnectionStateText(
+      String deviceId, AppLocalizations localizations) {
+    final state =
+        _connectionStates[deviceId] ?? DeviceConnectionState.disconnected;
+    switch (state) {
+      case DeviceConnectionState.connecting:
+        return localizations.connecting;
+      case DeviceConnectionState.connected:
+        return localizations.connected;
+      case DeviceConnectionState.failed:
+        return localizations.connectionFailed;
+      case DeviceConnectionState.disconnected:
+        return localizations.disconnected;
+    }
   }
 
   @override
@@ -174,27 +284,36 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context);
+
     if (!_isInitialized) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Multiple Users')),
+        appBar: AppBar(
+          title: Text(
+              _isMain ? localizations.mainDevice : localizations.clientDevice),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (!_isActive) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Multiple Users')),
-        body: Center(child: _buildRoleSelection()),
+        appBar: AppBar(
+          title: Text(localizations.selectRole),
+        ),
+        body: Center(child: _buildRoleSelection(context)),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isMain ? 'Main Device' : 'Client Device'),
+        title: Text(
+            _isMain ? localizations.mainDevice : localizations.clientDevice),
         actions: [
           IconButton(
             icon: const Icon(Icons.stop),
             onPressed: _stop,
+            tooltip: localizations.stop,
           ),
         ],
       ),
@@ -203,37 +322,13 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
         child: Column(
           children: [
             Text(
-              _isMain ? 'Discovering Clients...' : 'Waiting for Main Device...',
+              _isMain
+                  ? localizations.discoveringClients
+                  : localizations.searchingForMain,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 24),
-            Expanded(
-              child: StreamBuilder<List<Discovery>>(
-                stream: _nearbyService.deviceStream,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(
-                      child: Text('No nearby devices found'),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: snapshot.data!.length,
-                    itemBuilder: (context, index) {
-                      final device = snapshot.data![index];
-                      return Card(
-                        child: ListTile(
-                          leading: const Icon(Icons.devices),
-                          title: Text(device.name),
-                          subtitle: Text(device.id),
-                          trailing: _buildConnectionButton(device.id),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
+            Expanded(child: _buildDeviceList()),
           ],
         ),
       ),
