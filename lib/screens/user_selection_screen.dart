@@ -33,7 +33,8 @@ class UserSelectionScreen extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
               ),
               onPressed: () {
-                Navigator.pushNamed(context, Routes.home);
+                // Navigate directly to the game for single player
+                Navigator.pushNamed(context, Routes.game);
               },
               child:
                   Text(l10n.singleUser, style: const TextStyle(fontSize: 18)),

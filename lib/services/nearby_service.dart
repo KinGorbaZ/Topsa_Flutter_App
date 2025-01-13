@@ -1,8 +1,12 @@
 // lib/services/nearby_service.dart
+import 'dart:convert';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../game_engine/game_state.dart';
+import '../routes.dart';
+import 'package:flutter/material.dart';
 
 class ConnectionStateUpdate {
   final String endpointId;
@@ -16,8 +20,8 @@ class NearbyService {
   static const String SERVICE_ID = "com.topsa.topsa_flutter_app";
   final Set<String> _connectedEndpoints = {};
   bool _isReconnecting = false;
-  // Added connection tracking map
   final Map<String, DeviceConnectionState> _connectionStates = {};
+  final BuildContext? context;
 
   final StreamController<List<Discovery>> _devicesController =
       StreamController<List<Discovery>>.broadcast();
@@ -33,7 +37,7 @@ class NearbyService {
   bool _isMain = false;
   bool _isActive = false;
 
-  NearbyService(this.userName);
+  NearbyService(this.userName, {this.context});
 
   Future<bool> initialize() async {
     try {
@@ -278,6 +282,42 @@ class NearbyService {
     debugPrint('Disconnected: $endpointId');
     _connectedEndpoints.remove(endpointId);
     _updateConnectionState(endpointId, DeviceConnectionState.disconnected);
+  }
+
+  Future<void> sendGameState(String endpointId, GameState state) async {
+    try {
+      await _nearby.sendBytesPayload(
+        endpointId,
+        Uint8List.fromList(utf8.encode('GAME_STATE:${state.toString()}')),
+      );
+    } catch (e) {
+      debugPrint('Error sending game state: $e');
+    }
+  }
+
+  void _handleGameMessage(String message) {
+    if (message.startsWith('GAME_STATE:')) {
+      final stateStr = message.split(':')[1];
+      final state = GameState.values.firstWhere(
+        (e) => e.toString() == stateStr,
+        orElse: () => GameState.idle,
+      );
+
+      // Handle the game state change
+      if (state == GameState.running && context != null) {
+        // Navigate to game screen using the provided context
+        Navigator.of(context!).pushNamed(Routes.game);
+      }
+    }
+  }
+
+  void _onPayLoadRecieved(String endpointId, Payload payload) {
+    if (payload.type == PayloadType.BYTES) {
+      String message = utf8.decode(payload.bytes!);
+      if (message.startsWith('GAME_STATE:')) {
+        _handleGameMessage(message);
+      }
+    }
   }
 
   Future<void> stop() async {

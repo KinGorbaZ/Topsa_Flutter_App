@@ -5,7 +5,7 @@
   "multipleUsers": "משתמשים מרובים",
   "settings": "הגדרות",
   "language": "שפה",
-  "english": "אנגלית",
+  "english": "English",
   "hebrew": "עברית",
   "selectRole": "בחר תפקיד",
   "startAsMain": "התחל כמכשיר ראשי",
@@ -27,5 +27,54 @@
   "initializationFailed": "האתחול נכשל. אנא בדוק הרשאות.",
   "discoveryError": "שגיאת חיפוש",
   "connectionError": "שגיאת חיבור: {error}",
-  "error": "שגיאה"
+  "error": "שגיאה",
+  "gameScore": "ניקוד: {score}",
+  "@gameScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "startGame": "התחל משחק",
+  "playAgain": "שחק שוב",
+  "wait": "...המתן",
+  "tap": "!הקש",
+  "gameOver": "!המשחק נגמר",
+  "waitingForPlayers": "...ממתין לשחקנים נוספים",
+  "readyToStart": "מוכן להתחיל",
+  "gameInProgress": "משחק בתהליך",
+  "gameTitle": "משחק תגובה",
+  "tapNow": "!הקש",
+  "waitForIt": "...המתן",
+  "timeLimit": "הגבלת זמן",
+  "scoreTarget": "יעד ניקוד",
+  "timeLimitSeconds": "מרווח זמן (שניות)",
+  "targetScore": "ניקוד יעד",
+  "gameColors": "צבעי משחק",
+  "tapToRemove": "(הקש להסרה)",
+  "pickAColor": "בחר צבע",
+  "gameMode": "מצב משחק",
+  "addColor": "הוסף צבע",
+  "hit": "!פגיעה",
+  "miss": "!החטאה",
+  "finalScore": "ניקוד סופי: {value}",
+  "@finalScore": {
+    "description": "Final game score",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "timeElapsed": "זמן: {value} שניות",
+  "@timeElapsed": {
+    "description": "Time elapsed in seconds",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "quit": "צא מהמשחק"
 }

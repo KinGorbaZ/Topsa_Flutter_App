@@ -3,6 +3,9 @@
 import 'package:flutter/material.dart';
 import '../services/nearby_service.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../game_engine/sync_manager.dart';
+import '../game_engine/game_state.dart';
+import '../routes.dart';
 
 class MultipleUsersScreen extends StatefulWidget {
   const MultipleUsersScreen({Key? key}) : super(key: key);
@@ -13,6 +16,8 @@ class MultipleUsersScreen extends StatefulWidget {
 
 class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
   late NearbyService _nearbyService;
+  late DeviceSyncManager _syncManager;
+  late GameStateManager _gameState;
   bool _isInitialized = false;
   bool _isMain = false;
   bool _isActive = false;
@@ -22,6 +27,21 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
   void initState() {
     super.initState();
     _initialize();
+    _gameState = GameStateManager();
+    _syncManager = DeviceSyncManager(
+      deviceId: DateTime.now().millisecondsSinceEpoch.toString(),
+      isMainDevice: false,
+    );
+  }
+
+  void _startGame() {
+    if (_isMain && _connectionStates.isNotEmpty) {
+      Navigator.pushNamed(context, Routes.game);
+      // Notify connected devices
+      for (var deviceId in _syncManager.connectedDevices) {
+        _nearbyService.sendGameState(deviceId, GameState.running);
+      }
+    }
   }
 
   Future<void> _initialize() async {
@@ -295,6 +315,14 @@ class _MultipleUsersScreenState extends State<MultipleUsersScreen> {
           title: Text(l10n.selectRole),
         ),
         body: Center(child: _buildRoleSelection(context)),
+      );
+    }
+
+    if (_isMain && _isActive && _connectionStates.isNotEmpty) {
+      return FloatingActionButton.extended(
+        onPressed: _startGame,
+        label: Text(l10n.startGame),
+        icon: const Icon(Icons.play_arrow),
       );
     }
 

@@ -1,12 +1,5 @@
 {
   "@@locale": "en",
-  "selectMode": "Select Mode",
-  "singleUser": "Single User",
-  "multipleUsers": "Multiple Users",
-  "settings": "Settings",
-  "language": "Language",
-  "english": "English",
-  "hebrew": "Hebrew",
   "selectRole": "Select Role",
   "startAsMain": "Start as Main Device",
   "startAsClient": "Start as Client Device",
@@ -34,5 +27,59 @@
       }
     }
   },
-  "error": "Error"
+  "error": "Error",
+  "gameScore": "Score: {score}",
+  "@gameScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "waitingForPlayers": "Waiting for other players...",
+  "readyToStart": "Ready to start",
+  "gameInProgress": "Game in progress",
+  "tapNow": "TAP!",
+  "waitForIt": "WAIT...",
+  "selectMode": "Select Mode",
+  "singleUser": "Single User",
+  "multipleUsers": "Multiple Users",
+  "settings": "Settings",
+  "language": "Language",
+  "english": "English",
+  "hebrew": "עברית",
+  "gameTitle": "Reaction Game",
+  "gameMode": "Game Mode",
+  "timeLimit": "Time Limit",
+  "scoreTarget": "Score Target",
+  "timeLimitSeconds": "Time Interval (seconds)",
+  "targetScore": "Target Score",
+  "startGame": "Start Game",
+  "gameColors": "Game Colors",
+  "tapToRemove": "(tap to remove)",
+  "pickAColor": "Pick a color",
+  "addColor": "Add Color",
+  "hit": "HIT!",
+  "miss": "MISS!",
+  "gameOver": "Game Over!",
+  "finalScore": "Final Score: {value}",
+  "@finalScore": {
+    "description": "Final game score",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "timeElapsed": "Time: {value} seconds",
+  "@timeElapsed": {
+    "description": "Time elapsed in seconds",
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
+  "playAgain": "Play Again",
+  "quit": "Quit Game"
 }
